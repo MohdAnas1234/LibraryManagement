@@ -1,53 +1,68 @@
 const Issue = require("../models/Issue");
 const Book = require("../models/Book");
 
-exports.issueBook = async (req, res) => {
-  const { bookId, userId } = req.body;
+const issueBook = async (req, res) => {
 
-  const book = await Book.findById(bookId);
-  if (!book.available)
-    return res.status(400).json({ message: "Book not available" });
+  const { bookId, userId, issueDate } = req.body;
 
-  const issue = await Issue.create({ book: bookId, user: userId });
-  book.available = false;
-  await book.save();
+  const returnDate = new Date(issueDate);
+  returnDate.setDate(returnDate.getDate() + 7);
 
-  res.json(issue);
+  const issue = new Issue({
+    bookId,
+    userId,
+    issueDate,
+    returnDate
+  });
+
+  await issue.save();
+
+  await Book.findByIdAndUpdate(bookId, {
+    $inc: { availableCopies: -1 }
+  });
+
+  res.json({ success: true });
+
 };
 
-exports.returnBook = async (req, res) => {
-  const issue = await Issue.findById(req.params.id);
+const returnBook = async (req, res) => {
 
-  const today = new Date();
-  const diff = today - issue.issueDate;
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const { issueId, actualReturnDate } = req.body;
 
-  if (days > 7) {
-    issue.fine = (days - 7) * 10;
+  const issue = await Issue.findById(issueId);
+
+  issue.actualReturnDate = actualReturnDate;
+
+  const lateDays = Math.ceil(
+    (new Date(actualReturnDate) - issue.returnDate) / (1000 * 60 * 60 * 24)
+  );
+
+  if (lateDays > 0) {
+    issue.fineAmount = lateDays * 10;
   }
 
-  issue.returnDate = today;
   await issue.save();
 
-  const book = await Book.findById(issue.book);
-  book.available = true;
-  await book.save();
+  await Book.findByIdAndUpdate(issue.bookId, {
+    $inc: { availableCopies: 1 }
+  });
 
-  res.json(issue);
+  res.json({ success: true });
+
 };
 
-exports.payFine = async (req, res) => {
-  const issue = await Issue.findById(req.params.id);
-  issue.finePaid = true;
-  await issue.save();
+const getActiveIssues = async (req, res) => {
 
-  res.json({ message: "Fine paid successfully" });
+  const issues = await Issue.find({ actualReturnDate: null })
+    .populate("bookId")
+    .populate("userId");
+
+  res.json({ success: true, issues });
+
 };
 
-exports.overdueReport = async (req, res) => {
-  const overdue = await Issue.find({
-    returnDate: null
-  }).populate("book user");
-
-  res.json(overdue);
+module.exports = {
+  issueBook,
+  returnBook,
+  getActiveIssues
 };

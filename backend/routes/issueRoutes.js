@@ -1,16 +1,14 @@
 const express = require("express");
 const router = express.Router();
-const protect = require("../middleware/authMiddleware");
+
 const {
   issueBook,
   returnBook,
-  payFine,
-  overdueReport
+  getActiveIssues
 } = require("../controllers/issueController");
 
-router.post("/issue", protect, issueBook);
-router.post("/return/:id", protect, returnBook);
-router.post("/payfine/:id", protect, payFine);
-router.get("/overdue", protect, overdueReport);
+router.post("/issue", issueBook);
+router.post("/return", returnBook);
+router.get("/active", getActiveIssues);
 
 module.exports = router;

@@ -1,36 +1,37 @@
 const Book = require("../models/Book");
 
-exports.addBook = async (req, res) => {
-  const book = await Book.create(req.body);
-  res.json(book);
+exports.getBooks = async (req,res)=>{
+  const books = await Book.find();
+  res.json({success:true,books});
 };
 
-exports.updateBook = async (req, res) => {
-  const book = await Book.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(book);
-};
+exports.addBook = async (req,res)=>{
+  const {title,author,category,quantity} = req.body;
 
-exports.deleteBook = async (req, res) => {
-  await Book.findByIdAndDelete(req.params.id);
-  res.json({ message: "Book deleted" });
-};
-
-exports.getBooks = async (req, res) => {
-  const page = Number(req.query.page) || 1;
-  const limit = 5;
-  const keyword = req.query.keyword
-    ? { title: { $regex: req.query.keyword, $options: "i" } }
-    : {};
-
-  const count = await Book.countDocuments(keyword);
-
-  const books = await Book.find(keyword)
-    .limit(limit)
-    .skip(limit * (page - 1));
-
-  res.json({
-    books,
-    page,
-    pages: Math.ceil(count / limit)
+  const book = new Book({
+    title,
+    author,
+    category,
+    quantity,
+    availableCopies:quantity
   });
+
+  await book.save();
+
+  res.json({success:true,message:"Book added"});
+};
+
+exports.searchBooks = async (req,res)=>{
+
+  const {title,author,category} = req.query;
+
+  const query={};
+
+  if(title) query.title={$regex:title,$options:"i"};
+  if(author) query.author={$regex:author,$options:"i"};
+  if(category) query.category={$regex:category,$options:"i"};
+
+  const books = await Book.find(query);
+
+  res.json({success:true,books});
 };

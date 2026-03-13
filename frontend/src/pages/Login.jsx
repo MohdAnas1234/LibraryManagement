@@ -1,32 +1,106 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../api";
+import "../style.css";
 
-function Login({ setIsLoggedIn }) {
+function Login() {
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const login = async () => {
-    const { data } = await API.post("/auth/login", {
-      email,
-      password
-    });
+  const navigate = useNavigate();
 
-    localStorage.setItem("token", data.token);
-    setIsLoggedIn(true);
+  const handleSubmit = async (e) => {
+
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+
+      const response = await API.post("/auth/login", {
+        email,
+        password
+      });
+
+      if (response.data.success) {
+
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        const role = response.data.user.role;
+
+        if (role === "admin") {
+          navigate("/admin-home");
+        } else {
+          navigate("/user-home");
+        }
+
+      }
+
+    } catch (err) {
+
+      setError(err.response?.data?.message || "Invalid email or password");
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
   };
 
   return (
-    <div>
-      <h2>Admin Login</h2>
-      <input placeholder="Email" onChange={(e) => setEmail(e.target.value)} />
-      <br />
-      <input
-        type="password"
-        placeholder="Password"
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <br />
-      <button onClick={login}>Login</button>
+    <div className="login-container">
+
+      <div className="login-card">
+
+        <h2 className="login-title">📚 Library Management</h2>
+
+        <form onSubmit={handleSubmit}>
+
+          <div className="form-group">
+
+            <label>Email</label>
+
+            <input
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
+            />
+
+          </div>
+
+          <div className="form-group">
+
+            <label>Password</label>
+
+            <input
+              type="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+            />
+
+          </div>
+
+          {error && <p className="error">{error}</p>}
+
+          <button className="login-btn" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
+
+        </form>
+
+      </div>
+
     </div>
   );
 }
